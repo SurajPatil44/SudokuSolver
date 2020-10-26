@@ -5,23 +5,36 @@ use std::{env, path::Path};
 
 #[derive(Copy, Clone)]
 struct SudokuSolver {
-    matrix: [[u8; 9]; 9],
+    matrix: [[Tile; 9]; 9],
     done: bool,
     num_calls: usize,
 }
 
-//#[derive(Debug)]
-//struct SolveHelper(usize,usize,usize);
+#[derive(Copy, Clone, Debug)]
+struct Tile {
+    num: u8,
+    pos_sols: [bool; 9],
+}
+
+impl Default for Tile {
+    fn default() -> Tile {
+        Tile {
+            num: 0u8,
+            pos_sols: [false; 9],
+        }
+    }
+}
 
 impl Default for SudokuSolver {
     fn default() -> SudokuSolver {
         SudokuSolver {
-            matrix: [[0u8; 9]; 9],
+            matrix: [[Tile::default(); 9]; 9],
             done: false,
             num_calls: 0,
         }
     }
 }
+
 impl SudokuSolver {
     fn read_files<P: AsRef<Path>>(mut self, path: P) -> Self {
         let matfile = File::open(path).expect("can't open file");
@@ -30,8 +43,9 @@ impl SudokuSolver {
         for (iind, line) in lines.enumerate() {
             let line = line.unwrap();
             for (jind, num) in line.chars().enumerate() {
-                //print!("{} ",num);
-                self.matrix[iind][jind] = num.to_digit(10).unwrap() as u8;
+                print!("{} ", num);
+                let num = num.to_digit(10).unwrap() as u8;
+                self.matrix[iind][jind].num = num;
             }
             //println!();
         }
@@ -42,13 +56,18 @@ impl SudokuSolver {
 
     fn check_matrix(&self, row: usize, col: usize, num: u8) -> bool {
         let mut check = false;
+        //early return
+
+        if !self.matrix[row][col].pos_sols[(num - 1) as usize] {
+            return !check;
+        }
         for i in 0..9 {
-            if self.matrix[row][i] == num {
+            if self.matrix[row][i].num == num {
                 check = true;
             }
         }
         for i in 0..9 {
-            if self.matrix[i][col] == num {
+            if self.matrix[i][col].num == num {
                 check = true;
             }
         }
@@ -57,7 +76,7 @@ impl SudokuSolver {
 
         for i in 0..3 {
             for j in 0..3 {
-                if self.matrix[row + i][col + j] == num {
+                if self.matrix[row + i][col + j].num == num {
                     check = true;
                 }
             }
@@ -66,70 +85,59 @@ impl SudokuSolver {
     }
 
     fn place(&mut self, row: usize, col: usize, num: u8) {
-            self.matrix[row][col] = num;
+        self.matrix[row][col].num = num;
     }
 
     fn solver(&mut self) -> bool {
         self.num_calls += 1;
         let mut break_cond = false;
-        let mut checking_range = Vec::<(usize,usize,usize)>::new();
-        for iind in 0..9{
-            for jind in 0..9{
-                if self.matrix[iind][jind] == 0{
+        let mut checking_range = Vec::<(usize, usize, usize)>::new();
+        for iind in 0..9 {
+            for jind in 0..9 {
+                if self.matrix[iind][jind].num == 0 {
                     break_cond = true;
-                    let mut pos_sols : usize = 0;
+                    let mut pos_sols: usize = 0;
                     for i in 1..10 {
-                        if self.check_matrix(iind,jind,i as u8){
+                        if self.check_matrix(iind, jind, i as u8) {
                             pos_sols += 1;
+                            self.matrix[iind][jind].pos_sols[i - 1] = true;
                         }
                     }
-                    checking_range.push((iind,jind,pos_sols));
+                    checking_range.push((iind, jind, pos_sols));
                 }
             }
         }
 
         if !break_cond {
             println!();
-            println!("took {} iterations to calculate solution",self.num_calls);
+            println!("took {} iterations to calculate solution", self.num_calls);
             println!();
             self.print_matrix();
             exit(0);
         }
-        //println!("{:#?}",checking_range);
-        let mut minimum_loc : (usize,usize) = (checking_range[0].0,checking_range[0].1);
+
+        let mut minimum_loc: (usize, usize) = (checking_range[0].0, checking_range[0].1);
         let mut low = checking_range[0].2;
 
-        for elem in checking_range{
+        for elem in checking_range {
             if elem.2 < low {
-                minimum_loc = (elem.0,elem.1);
+                minimum_loc = (elem.0, elem.1);
                 low = elem.2;
             }
         }
 
-/*
-	for i in range(0,10):
-		if check_soduku(row,column,i,matrix):
-			matrix[row][column]=i
-			if sudoku_solver(matrix):
-				return True
-			matrix[row][column]=0
-        return False
-*/
-        //println!("minimum after {} iterations {:?} , {} ",self.num_calls,minimum_loc,low);
         for i in 1..10 {
-            if self.check_matrix(minimum_loc.0,minimum_loc.1,i as u8){
-                self.place(minimum_loc.0,minimum_loc.1,i as u8);
+            if self.check_matrix(minimum_loc.0, minimum_loc.1, i as u8) {
+                self.place(minimum_loc.0, minimum_loc.1, i as u8);
                 if self.solver() {
                     return true;
                 }
-                self.place(minimum_loc.0,minimum_loc.1,0 as u8);
+                self.place(minimum_loc.0, minimum_loc.1, 0 as u8);
             }
         }
-        
-        
+
         false
     }
-    
 
     fn print_matrix(self) {
         let mut i = 0;
@@ -138,11 +146,11 @@ impl SudokuSolver {
             if i % 3 == 1 && i > 3 {
                 println!("-----------------------");
             }
-            for (j, num) in row.iter().enumerate() {
+            for (j, tile) in row.iter().enumerate() {
                 if j % 3 == 0 && j > 0 {
                     print!(" | ");
                 }
-                match *num {
+                match tile.num {
                     0 => print!("_"),
                     n => print!("{}", n),
                 }
