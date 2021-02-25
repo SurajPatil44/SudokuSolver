@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::process::exit;
 use std::{env, path::Path};
+use std::collections::BinaryHeap;
+use std::cmp::Reverse;
 
 #[derive(Copy, Clone)]
 struct SudokuSolver {
@@ -91,7 +93,7 @@ impl SudokuSolver {
     fn solver(&mut self) -> bool {
         self.num_calls += 1;
         let mut break_cond = false;
-        let mut checking_range = Vec::<(usize, usize, usize)>::new();
+        let mut checking_range = BinaryHeap::new();
         for iind in 0..9 {
             for jind in 0..9 {
                 if self.matrix[iind][jind].num == 0 {
@@ -103,7 +105,7 @@ impl SudokuSolver {
                             self.matrix[iind][jind].pos_sols[i - 1] = true;
                         }
                     }
-                    checking_range.push((iind, jind, pos_sols));
+                    checking_range.push(Reverse((pos_sols,iind,jind)));
                 }
             }
         }
@@ -116,15 +118,9 @@ impl SudokuSolver {
             exit(0);
         }
 
-        let mut minimum_loc: (usize, usize) = (checking_range[0].0, checking_range[0].1);
-        let mut low = checking_range[0].2;
-
-        for elem in checking_range {
-            if elem.2 < low {
-                minimum_loc = (elem.0, elem.1);
-                low = elem.2;
-            }
-        }
+        let first = checking_range.pop().unwrap().0;
+        let minimum_loc: (usize, usize) = (first.1, first.2);
+        //let low = first.0;
 
         for i in 1..10 {
             if self.check_matrix(minimum_loc.0, minimum_loc.1, i as u8) {
