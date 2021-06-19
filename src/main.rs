@@ -6,38 +6,38 @@ use std::collections::BinaryHeap;
 use std::cmp::Reverse;
 
 #[derive(Copy, Clone)]
-struct SudokuSolver {
-    matrix: [[Tile; 9]; 9],
+struct SudokuSolver<const N : usize>{
+    matrix: [[Tile<N>; N]; N],
     done: bool,
     num_calls: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Tile {
+struct Tile<const N : usize> {
     num: u8,
-    pos_sols: [bool; 9],
+    pos_sols: [bool; N],
 }
 
-impl Default for Tile {
-    fn default() -> Tile {
+impl<const N: usize> Default for Tile<N> {
+    fn default() -> Tile<N> {
         Tile {
             num: 0u8,
-            pos_sols: [false; 9],
+            pos_sols: [false; N],
         }
     }
 }
 
-impl Default for SudokuSolver {
-    fn default() -> SudokuSolver {
+impl<const N : usize> Default for SudokuSolver<N> {
+    fn default() -> SudokuSolver<N> {
         SudokuSolver {
-            matrix: [[Tile::default(); 9]; 9],
+            matrix : [[Tile::<N>::default();N];N],
             done: false,
             num_calls: 0,
         }
     }
 }
 
-impl SudokuSolver {
+impl<const N : usize> SudokuSolver<N> {
     fn read_files<P: AsRef<Path>>(mut self, path: P) -> Self {
         let matfile = File::open(path).expect("can't open file");
         let mut lines = io::BufReader::new(matfile).lines();
@@ -63,12 +63,12 @@ impl SudokuSolver {
         if !self.matrix[row][col].pos_sols[(num - 1) as usize] {
             return !check;
         }
-        for i in 0..9 {
+        for i in 0..N {
             if self.matrix[row][i].num == num {
                 check = true;
             }
         }
-        for i in 0..9 {
+        for i in 0..N {
             if self.matrix[i][col].num == num {
                 check = true;
             }
@@ -163,7 +163,7 @@ impl SudokuSolver {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let solver = SudokuSolver::default();
+    let solver = SudokuSolver::<9>::default();
     let mut solver = solver.read_files(&args[1]);
     solver.print_matrix();
     solver.solver();
