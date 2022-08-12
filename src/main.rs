@@ -68,6 +68,23 @@ impl<const N: usize> SudokuSolver<N> {
 
     fn place(&mut self, row: usize, col: usize, num: u8) {
         self.matrix[row][col].num = num;
+        if num > 0 {
+            self.matrix[row][col].pos_sols[usize::from(num - 1)] = false;
+        }
+    }
+
+    fn setup(&mut self) {
+        for iind in 0..9 {
+            for jind in 0..9 {
+                if self.matrix[iind][jind].num == 0 {
+                    for i in 1..10 {
+                        if self.check_matrix(iind, jind, i as u8) {
+                            self.matrix[iind][jind].pos_sols[i - 1] = true;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn solver(&mut self) -> bool {
@@ -81,7 +98,14 @@ impl<const N: usize> SudokuSolver<N> {
                             pos_sols += 1;
                             self.matrix[iind][jind].pos_sols[i - 1] = true;
                         }
-                    }
+                    } 
+                   /* 
+                    let pos_sols = self.matrix[iind][jind]
+                        .pos_sols
+                        .iter()
+                        .filter(|&n| *n)
+                        .count();
+                    */
                     checking_range.push(Reverse((pos_sols, iind, jind)));
                 }
             }
@@ -90,7 +114,7 @@ impl<const N: usize> SudokuSolver<N> {
         if first.is_none() {
             return true;
         }
-        let minimum_loc: (usize, usize) = (first.unwrap().0.1, first.unwrap().0.2);
+        let minimum_loc: (usize, usize) = (first.unwrap().0 .1, first.unwrap().0 .2);
         //let low = first.0;
 
         for i in 1..10 {
@@ -107,7 +131,12 @@ impl<const N: usize> SudokuSolver<N> {
         false
     }
 
-    fn print_matrix(self) {
+    fn solve(&mut self) -> bool {
+        self.setup();
+        self.solver()
+    }
+
+    fn print_matrix(&self) {
         let mut i = 0;
         for row in &self.matrix[..] {
             i += 1;
@@ -138,8 +167,8 @@ fn main() {
     let solver = SudokuSolver::<9>::default();
     let mut solver = solver.read_files(&args[1]);
     solver.print_matrix();
-    if solver.solver() {
-        println!("took {} calls",solver.num_calls);
+    if solver.solve() {
+        println!("took {} calls", solver.num_calls);
         solver.print_matrix();
     }
 }
