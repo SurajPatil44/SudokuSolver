@@ -2,7 +2,6 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::process::exit;
 use std::{env, path::Path};
 
 #[derive(Copy, Clone)]
@@ -57,7 +56,7 @@ impl<const N: usize> SudokuSolver<N> {
     }
 
     fn check_matrix(&self, row: usize, col: usize, num: u8) -> bool {
-        let mut check = (0..N).all(|i| self.matrix[row][i].num != num)
+        let check = (0..N).all(|i| self.matrix[row][i].num != num)
             && (0..N).all(|i| self.matrix[i][col].num != num);
         let row = row - row % 3;
         let col = col - col % 3;
@@ -72,13 +71,10 @@ impl<const N: usize> SudokuSolver<N> {
     }
 
     fn solver(&mut self) -> bool {
-        self.num_calls += 1;
-        let mut break_cond = false;
         let mut checking_range = BinaryHeap::new();
         for iind in 0..9 {
             for jind in 0..9 {
                 if self.matrix[iind][jind].num == 0 {
-                    break_cond = true;
                     let mut pos_sols: usize = 0;
                     for i in 1..10 {
                         if self.check_matrix(iind, jind, i as u8) {
@@ -90,17 +86,11 @@ impl<const N: usize> SudokuSolver<N> {
                 }
             }
         }
-
-        if !break_cond {
-            println!();
-            println!("took {} iterations to calculate solution", self.num_calls);
-            println!();
-            self.print_matrix();
-            exit(0);
+        let first = checking_range.pop();
+        if first.is_none() {
+            return true;
         }
-
-        let first = checking_range.pop().unwrap().0;
-        let minimum_loc: (usize, usize) = (first.1, first.2);
+        let minimum_loc: (usize, usize) = (first.unwrap().0.1, first.unwrap().0.2);
         //let low = first.0;
 
         for i in 1..10 {
@@ -109,6 +99,7 @@ impl<const N: usize> SudokuSolver<N> {
                 if self.solver() {
                     return true;
                 }
+                self.num_calls += 1;
                 self.place(minimum_loc.0, minimum_loc.1, 0 as u8);
             }
         }
@@ -147,5 +138,8 @@ fn main() {
     let solver = SudokuSolver::<9>::default();
     let mut solver = solver.read_files(&args[1]);
     solver.print_matrix();
-    solver.solver();
+    if solver.solver() {
+        println!("took {} calls",solver.num_calls);
+        solver.print_matrix();
+    }
 }
