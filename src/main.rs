@@ -57,9 +57,9 @@ impl<const N: usize> SudokuSolver<N> {
 
     fn check_matrix(&self, row: usize, col: usize, num: u8) -> bool {
         //early exit
-        if !self.matrix[row][col].pos_sols[usize::from(num - 1)] {
+        /*if self.matrix[row][col].pos_sols[usize::from(num - 1)] {
             return true;
-        }
+        }*/
         let check = (0..N).all(|i| self.matrix[row][i].num != num)
             && (0..N).all(|i| self.matrix[i][col].num != num);
         let row = row - row % 3;
