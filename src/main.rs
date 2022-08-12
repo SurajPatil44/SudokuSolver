@@ -1,19 +1,19 @@
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::process::exit;
 use std::{env, path::Path};
-use std::collections::BinaryHeap;
-use std::cmp::Reverse;
 
 #[derive(Copy, Clone)]
-struct SudokuSolver<const N : usize>{
+struct SudokuSolver<const N: usize> {
     matrix: [[Tile<N>; N]; N],
     done: bool,
     num_calls: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Tile<const N : usize> {
+struct Tile<const N: usize> {
     num: u8,
     pos_sols: [bool; N],
 }
@@ -27,17 +27,17 @@ impl<const N: usize> Default for Tile<N> {
     }
 }
 
-impl<const N : usize> Default for SudokuSolver<N> {
+impl<const N: usize> Default for SudokuSolver<N> {
     fn default() -> SudokuSolver<N> {
         SudokuSolver {
-            matrix : [[Tile::<N>::default();N];N],
+            matrix: [[Tile::<N>::default(); N]; N],
             done: false,
             num_calls: 0,
         }
     }
 }
 
-impl<const N : usize> SudokuSolver<N> {
+impl<const N: usize> SudokuSolver<N> {
     fn read_files<P: AsRef<Path>>(mut self, path: P) -> Self {
         let matfile = File::open(path).expect("can't open file");
         let mut lines = io::BufReader::new(matfile).lines();
@@ -45,7 +45,7 @@ impl<const N : usize> SudokuSolver<N> {
         for (iind, line) in lines.enumerate() {
             let line = line.unwrap();
             for (jind, num) in line.chars().enumerate() {
-                print!("{} ", num);
+                // print!("{} ", num);
                 let num = num.to_digit(10).unwrap() as u8;
                 self.matrix[iind][jind].num = num;
             }
@@ -57,33 +57,14 @@ impl<const N : usize> SudokuSolver<N> {
     }
 
     fn check_matrix(&self, row: usize, col: usize, num: u8) -> bool {
-        let mut check = false;
-        //early return
-
-        if !self.matrix[row][col].pos_sols[(num - 1) as usize] {
-            return !check;
-        }
-        for i in 0..N {
-            if self.matrix[row][i].num == num {
-                check = true;
-            }
-        }
-        for i in 0..N {
-            if self.matrix[i][col].num == num {
-                check = true;
-            }
-        }
+        let mut check = (0..N).all(|i| self.matrix[row][i].num != num)
+            && (0..N).all(|i| self.matrix[i][col].num != num);
         let row = row - row % 3;
         let col = col - col % 3;
-
-        for i in 0..3 {
-            for j in 0..3 {
-                if self.matrix[row + i][col + j].num == num {
-                    check = true;
-                }
-            }
-        }
-        return !check;
+        check
+            && (0..3)
+                .zip(0..3)
+                .all(|(i, j)| self.matrix[row + i][col + j].num != num)
     }
 
     fn place(&mut self, row: usize, col: usize, num: u8) {
@@ -105,7 +86,7 @@ impl<const N : usize> SudokuSolver<N> {
                             self.matrix[iind][jind].pos_sols[i - 1] = true;
                         }
                     }
-                    checking_range.push(Reverse((pos_sols,iind,jind)));
+                    checking_range.push(Reverse((pos_sols, iind, jind)));
                 }
             }
         }
