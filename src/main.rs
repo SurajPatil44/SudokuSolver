@@ -1,16 +1,22 @@
+use crossterm::{
+    cursor,
+    style::{self},
+    terminal, ExecutableCommand, QueueableCommand,
+};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::fs::File;
-use std::io::stdout;
-use std::io::Write;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Stdout, Write};
+use std::thread;
+use std::time::Duration;
 use std::{env, path::Path};
 
-#[derive(Copy, Clone)]
+//#[derive(Clone)]
 struct SudokuSolver<const N: usize> {
     matrix: [[Tile<N>; N]; N],
     done: bool,
     num_calls: usize,
+    printer: Stdout,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -28,12 +34,13 @@ impl<const N: usize> Default for Tile<N> {
     }
 }
 
-impl<const N: usize> Default for SudokuSolver<N> {
-    fn default() -> SudokuSolver<N> {
+impl<const N: usize> SudokuSolver<N> {
+    fn new(printer: Stdout) -> SudokuSolver<N> {
         SudokuSolver {
             matrix: [[Tile::<N>::default(); N]; N],
             done: false,
             num_calls: 0,
+            printer: printer,
         }
     }
 }
@@ -140,6 +147,7 @@ impl<const N: usize> SudokuSolver<N> {
         for i in 0..10 {
             if self.check_matrix(minimum_loc.0, minimum_loc.1, i as u8) {
                 self.place(minimum_loc.0, minimum_loc.1, i as u8);
+                self.print_matrix().unwrap();
                 if self.solver() {
                     return true;
                 }
@@ -147,9 +155,6 @@ impl<const N: usize> SudokuSolver<N> {
                 self.place(minimum_loc.0, minimum_loc.1, 0 as u8);
             }
         }
-        print!("\r\r\r\r\r");
-        println!("{}", self.print_matrix());
-        let _ = stdout().flush();
         return false;
     }
 
@@ -158,7 +163,7 @@ impl<const N: usize> SudokuSolver<N> {
         self.solver()
     }
 
-    fn print_matrix(&self) -> String {
+    fn print_matrix(&mut self) -> io::Result<()> {
         let mut i = 0;
         let mut fmt = String::new();
         for row in &self.matrix[..] {
@@ -172,7 +177,7 @@ impl<const N: usize> SudokuSolver<N> {
                     fmt.push_str("║ ║");
                 }
                 match tile.num {
-                    0 => fmt.push_str(" - "),
+                    0 => fmt.push_str(" █ "),
                     n => fmt.push_str(&format!(" {} ", n)),
                 }
                 if j % 3 < 2 {
@@ -184,17 +189,26 @@ impl<const N: usize> SudokuSolver<N> {
             fmt.push_str("\n━━━┛━━━┛━━━┛ ┗━━━┛━━━┛━━━┛ ┗━━━┛━━━┛━━━\n");
         }
         fmt.push_str("============================\n");
-        fmt
+        self.printer
+            .queue(cursor::MoveTo(0, 10))?
+            .queue(style::Print(fmt))?;
+        self.printer.flush()?;
+        thread::sleep(Duration::from_millis(40));
+        Ok(())
     }
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let solver = SudokuSolver::<9>::default();
+    let mut stdout = io::stdout();
+    stdout
+        .execute(terminal::Clear(terminal::ClearType::All))
+        .unwrap();
+    let solver = SudokuSolver::<9>::new(stdout);
     let mut solver = solver.read_files(&args[1]);
-    println!("{}", solver.print_matrix());
+    solver.print_matrix().unwrap();
     if solver.solve() {
         println!("took {} calls", solver.num_calls);
-        println!("{}", solver.print_matrix());
+        solver.print_matrix().unwrap();
     }
 }
